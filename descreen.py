@@ -13,13 +13,12 @@ parser.add_argument('--middle', '-m', default=4, type=int,
                     help='Ratio for middle preservation')
 args = parser.parse_args()
 
-def normalize(img):
-    h, w = img.shape
-    x = np.floor(img % w)
-    y = np.floor(img / w)
-    cx = np.abs(x - w/2);
-    cy = np.abs(y - h/2);
-    energy = (cx ** 0.5 + cy ** 0.5);
+def normalize(h, w):
+    x = np.arange(w)
+    y = np.arange(h)
+    cx = np.abs(x - w/2) ** 0.5
+    cy = np.abs(y - h/2) ** 0.5
+    energy = sum(np.meshgrid(cx, cy))
     return np.maximum(energy*energy, 0.01)
 
 def ellipse(w, h):
@@ -29,8 +28,7 @@ def ellipse(w, h):
 
 img = np.float32(cv2.imread(args.input).transpose(2, 0, 1))
 rows, cols = img.shape[-2:]
-coefs = normalize(np.arange(rows * cols).reshape(rows, cols))
-fft = np.empty((3, rows, cols, 2))
+coefs = normalize(rows, cols)
 mid = args.middle*2
 rad = args.radius
 ew, eh = cols/mid, rows/mid
@@ -38,9 +36,9 @@ pw, ph = (cols-ew*2)/2, (rows-eh*2)/2
 middle = np.pad(ellipse(ew, eh), ((ph,rows-ph-eh*2-1), (pw,cols-pw-ew*2-1)), 'constant')
 
 for i in range(3):
-    fft[i] = cv2.dft(img[i],flags = 18)
-    fft[i] = np.fft.fftshift(fft[i])
-    spectrum = 20*np.log(cv2.magnitude(fft[i,:,:,0],fft[i,:,:,1]) * coefs)
+    fftimg = cv2.dft(img[i],flags = 18)
+    fftimg = np.fft.fftshift(fftimg)
+    spectrum = 20*np.log(cv2.magnitude(fftimg[:,:,0],fftimg[:,:,1]) * coefs)
 
     ret, thresh = cv2.threshold(np.float32(np.maximum(0, spectrum)), args.thresh, 255, cv2.THRESH_BINARY)
     thresh *= 1-middle
@@ -48,7 +46,7 @@ for i in range(3):
     thresh = cv2.GaussianBlur(thresh, (0,0), rad/3., 0, 0, cv2.BORDER_REPLICATE)
     thresh = 1 - thresh / 255
 
-    img_back = fft[i] * np.repeat(thresh[...,None], 2, axis = 2)
+    img_back = fftimg * np.repeat(thresh[...,None], 2, axis = 2)
     img_back = np.fft.ifftshift(img_back)
     img_back = cv2.idft(img_back)
     img[i] = cv2.magnitude(img_back[:,:,0],img_back[:,:,1])
