@@ -16,9 +16,9 @@ args = parser.parse_args()
 def normalize(h, w):
     x = np.arange(w)
     y = np.arange(h)
-    cx = np.abs(x - w/2) ** 0.5
-    cy = np.abs(y - h/2) ** 0.5
-    energy = sum(np.meshgrid(cx, cy))
+    cx = np.abs(x - w//2) ** 0.5
+    cy = np.abs(y - h//2) ** 0.5
+    energy = cx[None,:] + cy[:,None]
     return np.maximum(energy*energy, 0.01)
 
 def ellipse(w, h):
@@ -31,8 +31,8 @@ rows, cols = img.shape[-2:]
 coefs = normalize(rows, cols)
 mid = args.middle*2
 rad = args.radius
-ew, eh = cols/mid, rows/mid
-pw, ph = (cols-ew*2)/2, (rows-eh*2)/2
+ew, eh = cols//mid, rows//mid
+pw, ph = (cols-ew*2)//2, (rows-eh*2)//2
 middle = np.pad(ellipse(ew, eh), ((ph,rows-ph-eh*2-1), (pw,cols-pw-ew*2-1)), 'constant')
 
 for i in range(3):
